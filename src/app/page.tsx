@@ -22,6 +22,7 @@ interface SubmitResult {
   captchaRequired: boolean;
   captchaPersistData?: string;
   error?: string;
+  ticketId?: string;
 }
 
 const BIGPIPE_KEYS = ['fb_dtsg','lsd','jazoest','__dyn','__hs','__hsi','__s','__rev','__req','__spin_r','__spin_b','__spin_t'];
