@@ -1,0 +1,13 @@
+node_modules/
+.next/
+out/
+build/
+.env*.local
+.vercel/
+*.log
+.DS_Store
+
+# C# / .NET
+FbAgentApi/bin/
+FbAgentApi/obj/
+FbAgentApi/.vs/
