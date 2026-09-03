@@ -107,7 +107,10 @@ export async function POST(request: Request) {
         "Referer": formUrl,
         "X-FB-LSD": lsd || "",
         "X-ASBD-ID": "129477",
-        "Content-Type": "application/x-www-form-urlencoded"
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-origin"
       },
       body: payload.toString()
     });
