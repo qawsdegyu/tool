@@ -19,13 +19,19 @@ export async function POST(request: Request) {
       headers: {
         "Cookie": cookies,
         "User-Agent": userAgent,
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Upgrade-Insecure-Requests": "1",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "max-age=0",
+        "Priority": "u=0, i",
+        "Sec-Ch-Prefers-Color-Scheme": "dark",
+        "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
         "Sec-Fetch-Dest": "document",
         "Sec-Fetch-Mode": "navigate",
         "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1"
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1"
       }
     });
 
@@ -45,13 +51,16 @@ export async function POST(request: Request) {
         headers: {
           "Cookie": cookies,
           "User-Agent": userAgent,
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.5",
-          "Upgrade-Insecure-Requests": "1",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+          "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+          "Sec-Ch-Ua-Mobile": "?0",
+          "Sec-Ch-Ua-Platform": '"Windows"',
           "Sec-Fetch-Dest": "document",
           "Sec-Fetch-Mode": "navigate",
           "Sec-Fetch-Site": "none",
-          "Sec-Fetch-User": "?1"
+          "Sec-Fetch-User": "?1",
+          "Upgrade-Insecure-Requests": "1"
         }
       });
       html = await fallbackReq.text();
@@ -82,8 +91,9 @@ export async function POST(request: Request) {
     payload.append("fb_dtsg", fbDtsg);
     payload.append("__req", reqId);
     payload.append("__a", "1");
-    payload.append("__be", "-1");
+    payload.append("__be", "1");
     payload.append("__pc", "PHASED:DEFAULT");
+    payload.append("__d", "www");
     payload.append("account_id", accountId || "");
     payload.append("country", country || "");
     payload.append("message", message || "");
@@ -103,14 +113,21 @@ export async function POST(request: Request) {
       headers: {
         "Cookie": cookies,
         "User-Agent": userAgent,
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
         "Origin": "https://www.facebook.com",
+        "Priority": "u=1, i",
         "Referer": formUrl,
-        "X-FB-LSD": lsd || "",
-        "X-ASBD-ID": "129477",
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Sec-Ch-Prefers-Color-Scheme": "dark",
+        "Sec-Ch-Ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
         "Sec-Fetch-Dest": "empty",
         "Sec-Fetch-Mode": "cors",
-        "Sec-Fetch-Site": "same-origin"
+        "Sec-Fetch-Site": "same-origin",
+        "X-ASBD-ID": "129477",
+        "X-FB-LSD": lsd || "",
+        "Content-Type": "application/x-www-form-urlencoded"
       },
       body: payload.toString()
     });
