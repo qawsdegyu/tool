@@ -21,26 +21,26 @@
 html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
 
 /* ─── Layout ─────────────────────────────────────── */
-.layout        { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+.layout        { display: flex; flex-direction: column; min-height: 100vh; }
 .topbar        { display: flex; align-items: center; gap: 12px; padding: 0 20px; height: 52px;
-                 background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+                 background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
 .topbar-logo   { font-size: 15px; font-weight: 700; background: linear-gradient(135deg,var(--accent),var(--accent2));
-                 -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+                 -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .topbar-status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted); margin-left: auto; }
 .dot           { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .dot.ok        { background: var(--success); box-shadow: 0 0 6px var(--success); }
 .dot.err       { background: var(--error); }
 
 .tabs-row      { display: flex; gap: 2px; padding: 8px 16px 0; background: var(--surface);
-                 border-bottom: 1px solid var(--border); flex-shrink: 0; }
+                 border-bottom: 1px solid var(--border); flex-shrink: 0; position: sticky; top: 52px; z-index: 99; }
 .tab-btn       { padding: 6px 16px; border-radius: 6px 6px 0 0; border: 1px solid transparent;
                  border-bottom: none; font-size: 13px; font-weight: 500; cursor: pointer;
                  background: transparent; color: var(--muted); transition: all .15s; }
 .tab-btn:hover { color: var(--text); background: var(--surface2); }
 .tab-btn.active{ background: var(--bg); border-color: var(--border); color: var(--accent); }
 
-.content       { flex: 1; overflow: hidden; display: flex; }
-.panel         { display: none; flex: 1; overflow: auto; padding: 20px; flex-direction: column; gap: 16px; }
+.content       { flex: 1; display: flex; }
+.panel         { display: none; flex: 1; padding: 20px; flex-direction: column; gap: 16px; }
 .panel.active  { display: flex; }
 
 /* ─── Cards ─────────────────────────────────────── */
@@ -62,12 +62,12 @@ textarea       { resize: vertical; min-height: 80px; font-family: var(--mono); f
 .form-group    { margin-bottom: 12px; }
 
 /* ─── Buttons ────────────────────────────────────── */
-.btn           { padding: 9px 18px; border-radius: 7px; font-size: 13px; font-weight: 600;
-                 cursor: pointer; border: none; display: inline-flex; align-items: center;
-                 gap: 7px; transition: all .15s; }
+.btn           { padding: 10px 24px; border-radius: 7px; font-size: 13px; font-weight: 600;
+                 cursor: pointer; border: none; display: inline-flex; align-items: center; justify-content: center;
+                 gap: 8px; transition: all .15s; }
 .btn-primary   { background: linear-gradient(135deg,var(--accent),var(--accent2)); color: #fff; }
 .btn-primary:hover { opacity: .88; transform: translateY(-1px); }
-.btn-ghost     { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost     { background: var(--surface2); color: var(--text); border: 1px solid var(--border); min-width: auto; }
 .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
 .btn-danger    { background: var(--error); color: #fff; }
 .btn:disabled  { opacity: .45; cursor: not-allowed; transform: none !important; }
