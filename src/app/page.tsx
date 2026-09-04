@@ -4,12 +4,18 @@ import React, { useState } from 'react';
 export default function Page() {
   const [form, setForm] = useState({
     accountId: '',
+    country: '',
     message: '',
     cookies: '',
-    formUrl: 'https://www.facebook.com/help/contact/649167531904667'
+    profileIndex: 0,
+    delay: 3000,
+    retryCount: 2,
+    retryDelay: 5000,
+    formUrl: 'https://www.facebook.com/help/contact/391647094929792'
   });
   const [status, setStatus] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [statusType, setStatusType] = useState<string>('');
 
   // Common Facebook support forms
   const forms = [
@@ -23,6 +29,7 @@ export default function Page() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
     setStatus(null);
+    setStatusType('');
     setLoading(true);
     try {
       const finalFormUrl = form.formUrl === 'custom' ? 
@@ -35,19 +42,38 @@ export default function Page() {
         body: JSON.stringify({
           port: 9222,
           accountId: form.accountId,
+          country: form.country,
           message: form.message,
           cookies: form.cookies.trim() || undefined,
-          formUrl: finalFormUrl
+          formUrl: finalFormUrl,
+          profileIndex: form.profileIndex,
+          delay: form.delay,
+          retryCount: form.retryCount,
+          retryDelay: form.retryDelay
         })
       });
       const data = await res.json();
       setStatus(data);
+      setStatusType(data.success ? 'success' : detectErrorType(data));
     } catch (err: any) {
       setStatus({ success: false, error: err.message });
+      setStatusType('general_error');
     } finally {
       setLoading(false);
     }
   };
+
+  function detectErrorType(statusData: any) {
+    if (!statusData.error && !statusData.response) return 'general_error';
+    const errText = (statusData.error || statusData.response || '').toLowerCase();
+    if (errText.includes('something went wrong') || errText.includes('block') || errText.includes('try closing')) {
+      return 'facebook_error';
+    }
+    if (errText.includes('fb_dtsg') || errText.includes('cookie') || errText.includes('logged')) {
+      return 'auth_error';
+    }
+    return 'general_error';
+  }
 
   return (
     <div style={{
@@ -60,7 +86,7 @@ export default function Page() {
       justifyContent: 'center',
       padding: '2rem'
     }}>
-      <div style={{ width: '100%', maxWidth: '500px' }}>
+      <div style={{ width: '100%', maxWidth: '600px' }}>
         <h1 style={{ fontSize: '1.75rem', marginBottom: '1.5rem', color: '#fff' }}>Facebook Support Automation</h1>
         
         <form onSubmit={handleSubmit} style={{
@@ -71,7 +97,6 @@ export default function Page() {
           boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.3)'
         }}>
           
-          {/* Account ID */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.875rem', color: '#cbd5e1' }}>Account ID</label>
             <input 
@@ -83,7 +108,6 @@ export default function Page() {
             />
           </div>
           
-          {/* Message */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.875rem', color: '#cbd5e1' }}>Message</label>
             <textarea 
@@ -95,8 +119,28 @@ export default function Page() {
               required
             ></textarea>
           </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.875rem', color: '#cbd5e1' }}>Profile Index</label>
+              <input 
+                type="number"
+                value={form.profileIndex} 
+                onChange={(e: any) => setForm({...form, profileIndex: Number(e.target.value)})} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }} 
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.875rem', color: '#cbd5e1' }}>Delay (ms)</label>
+              <input 
+                type="number"
+                value={form.delay} 
+                onChange={(e: any) => setForm({...form, delay: Number(e.target.value)})} 
+                style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }} 
+              />
+            </div>
+          </div>
           
-          {/* Cookies */}
           <div style={{ marginBottom: '1rem' }}>
             <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.875rem', color: '#cbd5e1' }}>Cookies (optional)</label>
             <input 
@@ -106,11 +150,10 @@ export default function Page() {
               style={{ width: '100%', padding: '0.75rem', borderRadius: '6px', border: '1px solid #475569', backgroundColor: '#0f172a', color: '#fff', boxSizing: 'border-box' }} 
             />
             <small style={{ display: 'block', marginTop: '0.3rem', fontSize: '0.75rem', color: '#94a3b8' }}>
-              Leave blank if Chrome is open with Facebook login on port 9222
+              Leave blank to automatically use the active Chrome session.
             </small>
           </div>
           
-          {/* Support Form URL */}
           <div style={{ marginBottom: '1.5rem' }}>
             <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.875rem', color: '#cbd5e1' }}>Support Form</label>
             <select 
@@ -126,7 +169,6 @@ export default function Page() {
             </select>
           </div>
           
-          {/* Submit Button */}
           <button type="submit" disabled={loading} style={{
             width: '100%', 
             padding: '0.75rem', 
@@ -150,7 +192,6 @@ export default function Page() {
           </button>
         </form>
 
-        {/* Status Messages */}
         {status && (
           <div style={{
             marginTop: '1.5rem', 
@@ -163,9 +204,31 @@ export default function Page() {
             {status.success ? (
               <p style={{ margin: 0, color: '#4ade80' }}><strong>✅ Success:</strong> HTTP {status.status === 200 ? '200' : status.status}</p>
             ) : (
-              <p style={{ margin: 0, color: '#f87171' }}>
-                <strong>❌ Error:</strong> {status.error || status.response || 'Unknown error'}
-              </p>
+              <div style={{ color: '#f87171' }}>
+                {statusType === 'facebook_error' && (
+                  <>
+                    <strong style={{ fontSize: '1rem' }}>⚠️ Facebook Security Block</strong>
+                    <p style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Facebook has temporarily blocked this session.</p>
+                    <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                      <li>Wait a few minutes before retrying.</li>
+                      <li>Try a different Profile Index or reload Chrome.</li>
+                    </ul>
+                  </>
+                )}
+                {statusType === 'auth_error' && (
+                  <>
+                    <strong style={{ fontSize: '1rem' }}>🔐 Authentication Required</strong>
+                    <p style={{ marginTop: '0.5rem', marginBottom: '0.5rem' }}>Facebook could not extract session tokens.</p>
+                    <ul style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                      <li>Ensure Chrome is open with Facebook login on port 9222.</li>
+                      <li>Make sure the account is not restricted.</li>
+                    </ul>
+                  </>
+                )}
+                {statusType === 'general_error' && (
+                  <p style={{ margin: 0 }}><strong>❌ Error:</strong> {status.error || status.response || 'Unknown error'}</p>
+                )}
+              </div>
             )}
           </div>
         )}

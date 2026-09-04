@@ -20,63 +20,52 @@ const sendCDP = (ws: any, method: string, params: any = {}) => {
 };
 
 // ============================================
-// Wait for page to finish loading via CDP
+// Adaptive Rate Limiter with Profile Rotation
 // ============================================
-async function waitForPageLoad(ws: any, websocketDebuggerUrl: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Define messageListener first
-    const messageListener = (msg: string) => {
-      const parsed = JSON.parse(msg);
-      if (parsed.method === 'Page.loadEventFired') {
-        clearTimeout(timeout);
-        ws.removeListener('message', messageListener);
-        resolve();
-      }
-    };
-    ws.on('message', messageListener);
-
-    const timeout = setTimeout(() => {
-      ws.removeListener('message', messageListener);
-      reject(new Error('Page load timeout'));
-    }, 30000);
-
-    // Also check ready state as backup
-    const checkReadyState = setInterval(() => {
-      sendCDP(ws, 'Runtime.evaluate', {
-        expression: 'document.readyState',
-        returnByValue: true
-      }).then((state: any) => {
-        if (state.value === 'complete') {
-          clearInterval(checkReadyState);
-          clearTimeout(timeout);
-          ws.removeListener('message', messageListener);
-          resolve();
-        }
-      }).catch(() => {});
-    }, 500);
-  });
-}
-
-// ============================================
-// Rate limiter for sequential requests
-// ============================================
-class RequestQueue {
-  private queue: Array<{ resolve: (value: any) => void; reject: (reason: any) => void; delay: number }> = [];
+class AdaptiveRateLimiter {
+  private queue: Array<{ resolve: (value: any) => void; reject: (reason: any) => void; delay: number; profileIndex: number }> = [];
   private interval: NodeJS.Timeout | null = null;
   private running = 0;
-  private maxConcurrent = 1; // Single by default for CDP stability
+  private maxConcurrent = 1;
+  private profileIndex = 0;
+  private successCount = 0;
+  private failureCount = 0;
+  private baseDelay = 3000; // Base delay in ms
+  private maxDelay = 15000; // Max delay after consecutive failures
+  private failureStreak = 0;
 
-  enqueue(delay: number = 3000) {
+  constructor(initialProfileIndex: number = 0) {
+    this.profileIndex = initialProfileIndex;
+  }
+
+  setProfileIndex(profileIndex: number) {
+    this.profileIndex = profileIndex;
+  }
+
+  // Add task to queue with current profile and adaptive delay
+  enqueue() {
+    const delay = this.calculateDelay();
     return new Promise((resolve, reject) => {
-      this.queue.push({ resolve, reject, delay });
+      this.queue.push({ resolve, reject, delay, profileIndex: this.profileIndex });
       if (!this.interval) {
-        this.interval = setInterval(() => this.processNext(), this.delayBetween);
+        this.interval = setInterval(() => this.processNext(), this.baseDelay);
       }
-      // Process immediately if under limit
+      // Try to process immediately if under concurrency limit
       if (this.running < this.maxConcurrent) {
         this.processNext();
       }
     });
+  }
+
+  private calculateDelay(): number {
+    // Adaptive delay based on failure streak
+    const exponentialBackoff = Math.min(
+      this.baseDelay * Math.pow(1.5, this.failureStreak),
+      this.maxDelay
+    );
+    // Add some randomness (±20%) to avoid exact patterns
+    const jitter = exponentialBackoff * 0.2 * (Math.random() - 0.5);
+    return Math.max(1000, Math.floor(exponentialBackoff + jitter));
   }
 
   private delay(ms: number): Promise<void> {
@@ -90,26 +79,38 @@ class RequestQueue {
       return;
     }
 
-    const { resolve, reject, delay } = this.queue.shift()!;
+    const { resolve, reject, delay, profileIndex } = this.queue.shift()!;
     this.running++;
 
     try {
-      await this.delay(delay);
-      const result = await this.executeNext();
+      // Update profile if different from current
+      if (profileIndex !== this.profileIndex) {
+        this.profileIndex = profileIndex;
+        // Note: Profile switch would need to happen at API level
+        // this.profileIndex = profileIndex;
+      }
+
+      this.failureStreak = 0; // Reset on attempt
+      const result = await this.executeTask();
+      this.successCount++;
+      this.failureStreak = 0;
       resolve(result);
     } catch (err) {
+      this.failureCount++;
+      this.failureStreak++;
+      this.successCount = 0;
       reject(err);
     } finally {
       this.running--;
-      // Process next after delay
-      setTimeout(() => this.processNext(), this.delayBetween);
+      // Schedule next after delay
+      setTimeout(() => this.processNext(), delay);
     }
   }
 
-  private delayBetween = 3000;
-
-  setDelay(ms: number) {
-    this.delayBetween = ms;
+  private async executeTask() {
+    // This will be overridden per use case
+    // For CDP automation, the actual work happens in the API handler
+    return Promise.resolve();
   }
 
   stop() {
@@ -117,10 +118,6 @@ class RequestQueue {
       clearInterval(this.interval);
       this.interval = null;
     }
-  }
-
-  private async executeNext() {
-    return Promise.resolve();
   }
 }
 
@@ -139,7 +136,7 @@ export async function POST(request: Request) {
       cookies,               // Optional cookies (leave blank if Chrome logged in)
       useGraphQL = true,     // Use GraphQL wizard bypass
       profileIndex = 0,      // Which Chrome profile to use (0, 1, 2, 3)
-      delay = 3000,          // Delay between requests in ms (for batch mode)
+      delay = 3000,          // Base delay between requests in ms
       retryCount = 2,        // Number of retry attempts
       retryDelay = 5000      // Delay between retries in ms
     } = body;
@@ -170,24 +167,19 @@ export async function POST(request: Request) {
     const targets = await versionRes.json();
 
     let fbTarget = targets.find((t: any) => t.url.includes('facebook.com') && t.type === 'page');
-
+    
     // Auto-create Facebook tab if missing
     if (!fbTarget) {
       const newTabRes = await fetch(`http://127.0.0.1:${cdpPort}/json/new?https://www.facebook.com`);
       fbTarget = await newTabRes.json();
     }
-
+    
     if (!fbTarget) return NextResponse.json({ success: false, error: 'Failed to access browser tab.' });
 
     const ws = new WebSocket(fbTarget.webSocketDebuggerUrl);
     await new Promise((res, rej) => { ws.on('open', res); ws.on('error', rej); });
 
     // Wait for page to finish loading
-    await waitForPageLoad(ws, fbTarget.webSocketDebuggerUrl);
-
-    // ============================================
-    // 2. Enable Network domain
-    // ============================================
     await sendCDP(ws, 'Network.enable');
 
     // ============================================
@@ -202,7 +194,8 @@ export async function POST(request: Request) {
         await sendCDP(ws, 'Network.setCookies', { cookies: cookieParams });
         await sendCDP(ws, 'Page.enable');
         await sendCDP(ws, 'Page.reload');
-        await waitForPageLoad(ws, fbTarget.webSocketDebuggerUrl);
+        // Wait for page to reload - use a simple wait
+        await new Promise(r => setTimeout(r, 5000));
       }
     }
 
